@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>研究結果｜年齡與憂鬱、焦慮、壓力的關係</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav" aria-label="主要導覽"><div class="in"><a class="brand" href="index.html">年齡與憂鬱、焦慮、壓力</a><ul><li><a href="index.html">首頁</a></li><li><a href="results.html" aria-current="page">研究結果</a></li><li><a href="ask.html">問答</a></li><li><a href="about.html">關於研究</a></li></ul></div></nav>
+<main><div class="in">
+<h1>研究結果</h1>
+<p class="intro">DASS-42 量表共 42 題，憂鬱、焦慮、壓力各 14 題，每題以 0–3 分計（原始 1–4 分減 1），各分量表加總為 0–42 分，分數越高代表症狀越嚴重。</p>
+<p class="src" id="src"></p>
+
+<div class="bar">
+  <div class="tabs" role="tablist">
+    <button role="tab" data-v="mean" aria-selected="true">年齡對各分量的平均數</button>
+    <button role="tab" data-v="stack" aria-selected="false">各年齡層嚴重度分布</button>
+  </div>
+  <div id="scales"></div>
+</div>
+
+<div class="card">
+  <div class="leg" id="leg"></div>
+  <div id="chart"><div id="svgbox"></div><div id="tip" hidden></div></div>
+</div>
+
+<h2>統計表格</h2>
+<div class="card tw"><table id="tbl"></table></div>
+
+<h2>註解</h2>
+<div class="notes">
+<ul>
+<li><b>人數（n）</b>：該年齡層通過資料清洗的總人數，三個分量表共用；括號內的 n 與表格中的 n 相同。</li>
+<li><b>平均數與標準差</b>：各分量表總分（0–42）的平均與樣本標準差（分母 n−1）。標準差越大，代表同一年齡層內個別差異越大。</li>
+<li><b>95% 信賴區間（誤差線）</b>：平均數 ± 1.96 × 標準差 ÷ √n，採常態近似。它描述「平均數」估計的不確定性，不是個人分數的範圍；n 越小區間越寬，兩個區間不重疊才較能說明組間有差異。</li>
+<li><b>嚴重度分布</b>：依下表切截分數（原始總分，未乘 2）將每人分為五級，百分比為該等級人數占該年齡層的比例。</li>
+</ul>
+<table class="cut"><thead><tr><th>分量表</th><th>正常</th><th>輕度</th><th>中度</th><th>重度</th><th>極重度</th></tr></thead><tbody>
+<tr><td>憂鬱</td><td>0–9</td><td>10–13</td><td>14–20</td><td>21–27</td><td>28 以上</td></tr>
+<tr><td>焦慮</td><td>0–7</td><td>8–9</td><td>10–14</td><td>15–19</td><td>20 以上</td></tr>
+<tr><td>壓力</td><td>0–14</td><td>15–18</td><td>19–25</td><td>26–33</td><td>34 以上</td></tr></tbody></table>
+<p><b>注意事項</b></p>
+<ul>
+<li>資料來自自願填答的線上問卷，並非隨機抽樣，結果不能直接推論到一般人口。</li>
+<li>橫斷面資料只能看出年齡層之間的差異，不能說明隨年齡增長而改變，也不能推論因果。</li>
+<li>各年齡層人數差距很大，年長組樣本少，平均數與信賴區間較不穩定，解讀時請留意。</li>
+<li>DASS 是自陳量表，用於描述症狀程度，不能作為臨床診斷。</li>
+<li>資料清洗：排除 VCL6、VCL9、VCL12 任一為 1、年齡小於 7 或大於 90、familysize 為 0 或大於 20 的資料。</li>
+<li>折線圖同時顯示多個分量表時，各點在水平方向略微錯開，避免誤差線重疊。</li>
+</ul>
+</div>
+</div></main>
+<footer><div class="in"><span>組別：第 ＿ 組（請填入組別）</span><span>組員：（請填入組員姓名）</span></div></footer>
+<script>
+const SHEET_ID='1aRtR0BMKm8Y0_JgHcAkQbwwfiZCKB8Brp9E7VJwtRCM',SHEET_TAB='年齡層統計';
+const LVN=['正常','輕度','中度','重度','極重度'],ALIAS={'重度':'嚴重','極重度':'極嚴重'};
+const RANGES={stats:'A1:J8',lv:'A10:P17'};
+const NOLVTXT='在「'+SHEET_TAB+'」的 '+RANGES.lv+' 找不到嚴重度人數表（標題需含「憂鬱_正常」…「壓力_極嚴重」），因此無法顯示嚴重度分布。';
+const NOLV='<p style="margin:12px;color:var(--mut)">'+NOLVTXT+'</p>';
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function parseCSV(t){const r=[];let row=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch=='"')q=true;
+    else if(ch==','){row.push(c);c=''}
+    else if(ch=='\n'||ch=='\r'){if(ch=='\r'&&t[i+1]=='\n')i++;row.push(c);r.push(row);row=[];c=''}
+    else c+=ch}
+  if(c!==''||row.length){row.push(c);r.push(row)}return r}
+const num=s=>{const v=parseFloat(String(s).replace(/[,\s]/g,''));return isNaN(v)?null:v};
+async function getRows(range){
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(SHEET_TAB)+'&range='+range;
+  let res;try{res=await fetch(url)}catch(e){throw new Error('無法連線到 Google 試算表（'+e.message+'）')}
+  if(!res.ok)throw new Error('讀取 '+range+' 失敗，HTTP '+res.status+' '+res.statusText);
+  return parseCSV(await res.text()).filter(r=>r.some(x=>x.trim()))}
+function findTable(rows,key){
+  const i=rows.findIndex(r=>r.some(c=>c.replace(/\s/g,'')===key));
+  return i<0?null:{H:rows[i].map(h=>h.replace(/\s/g,'')),body:rows.slice(i+1)}}
+async function loadData(){
+  const t=findTable(await getRows(RANGES.stats),'人數');
+  if(!t)throw new Error('在「'+SHEET_TAB+'」的 '+RANGES.stats+' 找不到標題「人數」，請確認統計表放在 A1:J8');
+  const H=t.H,col=(...a)=>{for(const n of a){const i=H.indexOf(n);if(i>=0)return i}return -1};
+  const sc={D:'憂鬱',A:'焦慮',S:'壓力'},ix={},iL=col('年齡層'),iN=col('人數'),miss=[];
+  if(iL<0)miss.push('年齡層');
+  for(const k in sc){ix[k]={m:col(sc[k]+'_平均'),s:col(sc[k]+'_標準差')};
+    if(ix[k].m<0)miss.push(sc[k]+'_平均');if(ix[k].s<0)miss.push(sc[k]+'_標準差')}
+  if(miss.length)throw new Error('找不到欄位：'+miss.join('、')+'。目前的標題列是：'+H.join('、'));
+  const groups=t.body.map(r=>{const n=num(r[iN]);if(n===null||!r[iL].trim())return null;
+    const g={l:r[iL].trim(),n};
+    for(const k in sc){const m=num(r[ix[k].m]),s=num(r[ix[k].s]);
+      if(m===null||s===null)throw new Error('「'+g.l+'」的'+sc[k]+'平均或標準差不是數字');
+      g[k]={n,m,s,lv:null}}
+    return g}).filter(Boolean);
+  if(!groups.length)throw new Error('「'+SHEET_TAB+'」的 '+RANGES.stats+' 沒有資料列');
+  const lt=findTable(await getRows(RANGES.lv).catch(()=>[]),'憂鬱_正常');
+  if(lt){
+    const L=lt.H,li=L.indexOf('年齡層'),cols={};let ok=li>=0;
+    for(const k in sc){cols[k]=LVN.map(l=>{for(const n of [sc[k]+'_'+l,sc[k]+'_'+(ALIAS[l]||l)]){const i=L.indexOf(n);if(i>=0)return i}return -1});
+      if(cols[k].some(i=>i<0))ok=false}
+    if(ok){
+      const m=new Map(lt.body.map(r=>[r[li].trim(),r])),bad=groups.filter(g=>!m.has(g.l)).map(g=>g.l);
+      if(bad.length)throw new Error('嚴重度表（'+RANGES.lv+'）找不到年齡層：'+bad.join('、')+'。請確認 A11:A16 與 A2:A7 的年齡層相同');
+      for(const g of groups)for(const k in sc)g[k].lv=cols[k].map(i=>num(m.get(g.l)[i])||0)}}
+  return groups}
+function total(gs){const N=gs.reduce((a,g)=>a+g.n,0),T={n:N};
+  for(const k of ['D','A','S']){const M=gs.reduce((a,g)=>a+g.n*g[k].m,0)/N;
+    const ss=gs.reduce((a,g)=>a+(g.n-1)*g[k].s**2+g.n*(g[k].m-M)**2,0);
+    T[k]={n:N,m:M,s:Math.sqrt(ss/(N-1)),lv:gs[0][k].lv?LVN.map((_,j)=>gs.reduce((a,g)=>a+g[k].lv[j],0)):null}}
+  return T}
+const ERRHTML=e=>'<p style="margin:12px;padding:10px 12px;border-left:4px solid var(--l3);color:var(--ink)"><b>資料讀取失敗</b>：'+esc(e.message)+'<br>請確認試算表共用設定為「知道連結的任何人」可檢視，且工作表名稱為「'+SHEET_TAB+'」。</p>';
+const SC={D:{n:'憂鬱'},A:{n:'焦慮'},S:{n:'壓力'}},KEYS=['D','A','S'];
+const LV=['正常','輕度','中度','重度','極重度'];
+let G=[],T=null;
+const st={view:'mean',sel:['D','A','S'],one:'D'};
+const $=s=>document.querySelector(s),f=x=>x.toFixed(2);
+const ci=o=>{const h=1.96*o.s/Math.sqrt(o.n);return[o.m-h,o.m+h]};
+const lab=g=>g.l+'（n='+g.n+'）';
+$('#src').textContent='資料讀取中…';
+
+function ctrl(){
+  const c=$('#scales');
+  if(st.view==='mean'){
+    const last=st.sel.length===1?st.sel[0]:null;
+    c.innerHTML='<span class="cl">分量表（可複選，至少一個）</span>'+KEYS.map(k=>`<label style="--c:var(--c-${k})"><input type="checkbox" value="${k}" ${st.sel.includes(k)?'checked':''} ${last===k?'disabled':''}>${SC[k].n}</label>`).join('');
+  }else{
+    c.innerHTML='<span class="cl">分量表（單選）</span>'+KEYS.map(k=>`<label style="--c:var(--c-${k})"><input type="radio" name="one" value="${k}" ${st.one===k?'checked':''}>${SC[k].n}</label>`).join('');
+  }
+}
+function legend(){
+  $('#leg').innerHTML=st.view==='mean'
+    ?KEYS.filter(k=>st.sel.includes(k)).map(k=>`<span><i style="background:var(--c-${k})"></i>${SC[k].n}（點為平均數，線段為 95% CI）</span>`).join('')
+    :LV.map((n,j)=>`<span><i style="background:var(--l${j})"></i>${n}</span>`).join('');
+}
+function mean(){
+  const W=760,H=400,L=54,R=24,T0=20,B=64,pw=W-L-R,ph=H-T0-B,N=G.length;
+  const X=i=>L+pw*(i+.5)/N,Y=v=>T0+ph*(1-v/42);
+  const sel=KEYS.filter(k=>st.sel.includes(k));
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="各年齡層憂鬱、焦慮、壓力平均分數折線圖，詳細數值見下方表格">`;
+  for(let v=0;v<=42;v+=6)s+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx" x="${L-8}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+  s+=`<text class="tx" transform="translate(14 ${T0+ph/2}) rotate(-90)" text-anchor="middle">量表總分（0–42）</text>`;
+  G.forEach((g,i)=>{s+=`<text class="tx" x="${X(i)}" y="${H-B+22}" text-anchor="middle">${g.l}<tspan class="sm" x="${X(i)}" dy="17">（n=${g.n}）</tspan></text>`});
+  sel.forEach((k,j)=>{
+    const dx=(j-(sel.length-1)/2)*10,col=`var(--c-${k})`;
+    s+=`<polyline class="ln" style="stroke:${col}" points="${G.map((g,i)=>(X(i)+dx)+','+Y(g[k].m)).join(' ')}"/>`;
+    G.forEach((g,i)=>{
+      const o=g[k],[a,b]=ci(o),x=X(i)+dx,ya=Y(Math.max(0,a)),yb=Y(Math.min(42,b));
+      s+=`<g data-tip="<b>${SC[k].n}</b>｜${g.l}（n=${g.n}）<br>平均數 ${f(o.m)}　標準差 ${f(o.s)}<br>95% CI [${f(a)}, ${f(b)}]">`
+       +`<line class="eb" style="stroke:${col}" x1="${x}" x2="${x}" y1="${yb}" y2="${ya}"/>`
+       +`<line class="eb" style="stroke:${col}" x1="${x-4}" x2="${x+4}" y1="${yb}" y2="${yb}"/><line class="eb" style="stroke:${col}" x1="${x-4}" x2="${x+4}" y1="${ya}" y2="${ya}"/>`
+       +`<circle class="pt" style="fill:${col}" cx="${x}" cy="${Y(o.m)}" r="4.5"/><circle cx="${x}" cy="${Y(o.m)}" r="12" fill="transparent"/></g>`;
+    });
+  });
+  return s+'</svg>';
+}
+function stack(){if(!G[0][st.one].lv)return NOLV;
+  const k=st.one,W=760,L=150,R=24,T0=14,rh=48,B=46,N=G.length,H=T0+N*rh+B,pw=W-L-R;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${SC[k].n}嚴重度在各年齡層的分布，詳細數值見下方表格">`;
+  for(let p=0;p<=100;p+=20){const x=L+pw*p/100;s+=`<line class="gl" x1="${x}" x2="${x}" y1="${T0}" y2="${T0+N*rh}"/><text class="tx" x="${x}" y="${T0+N*rh+18}" text-anchor="middle">${p}%</text>`}
+  s+=`<text class="tx" x="${L+pw/2}" y="${H-6}" text-anchor="middle">各嚴重度等級占該年齡層的百分比</text>`;
+  G.forEach((g,i)=>{
+    const o=g[k],y=T0+i*rh+7;let acc=0;
+    s+=`<text class="tx" x="${L-10}" y="${y+22}" text-anchor="end">${lab(g)}</text>`;
+    o.lv.forEach((c,j)=>{
+      const p=c/o.n*100,x=L+pw*acc/100,w=pw*p/100;acc+=p;
+      s+=`<g data-tip="<b>${SC[k].n}</b>｜${g.l}<br>${LV[j]}：${p.toFixed(1)}%（${c} 人）"><rect x="${x}" y="${y}" width="${w}" height="34" style="fill:var(--l${j});stroke:var(--card);stroke-width:1"/>`
+       +(w>34?`<text class="seg s${j}" x="${x+w/2}" y="${y+22}" text-anchor="middle">${Math.round(p)}%</text>`:'')+'</g>';
+    });
+  });
+  return s+'</svg>';
+}
+function table(){
+  const rows=[...G,Object.assign({},T,{l:'全體'})];let h;
+  if(st.view==='mean'){
+    const sel=KEYS.filter(k=>st.sel.includes(k));
+    h='<thead><tr><th rowspan="2">年齡層</th><th rowspan="2">人數 n</th>'+sel.map(k=>`<th colspan="3" style="text-align:center;border-bottom:3px solid var(--c-${k})">${SC[k].n}</th>`).join('')+'</tr><tr>'+sel.map(()=>'<th>平均數</th><th>標準差</th><th>95% CI</th>').join('')+'</tr></thead><tbody>'
+     +rows.map(g=>`<tr><td>${g.l}</td><td>${g.n}</td>`+sel.map(k=>{const o=g[k],[a,b]=ci(o);return`<td>${f(o.m)}</td><td>${f(o.s)}</td><td>[${f(a)}, ${f(b)}]</td>`}).join('')+'</tr>').join('')+'</tbody>';
+  }else{
+    const k=st.one;
+    if(!G[0][k].lv){$('#tbl').innerHTML='<tbody><tr><td style="text-align:left">'+NOLVTXT+'</td></tr></tbody>';return}
+    h=`<thead><tr><th>年齡層（${SC[k].n}）</th><th>人數 n</th>`+LV.map(n=>`<th>${n}</th>`).join('')+'</tr></thead><tbody>'
+     +rows.map(g=>{const o=g[k];return`<tr><td>${g.l}</td><td>${g.n}</td>`+o.lv.map(c=>`<td>${c}（${(c/o.n*100).toFixed(1)}%）</td>`).join('')+'</tr>'}).join('')+'</tbody>';
+  }
+  $('#tbl').innerHTML=h;
+}
+function render(){if(!T)return;
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===st.view));
+  ctrl();legend();$('#svgbox').innerHTML=st.view==='mean'?mean():stack();table();$('#tip').hidden=true;
+}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b){st.view=b.dataset.v;render()}});
+$('#scales').addEventListener('change',e=>{
+  const v=e.target.value;
+  if(st.view==='mean'){st.sel=e.target.checked?[...st.sel,v]:st.sel.filter(x=>x!==v);if(!st.sel.length)st.sel=[v]}
+  else st.one=v;
+  render();
+});
+const wrap=$('#chart'),tip=$('#tip');
+wrap.addEventListener('pointermove',e=>{
+  const t=e.target.closest('[data-tip]');
+  if(!t){tip.hidden=true;return}
+  tip.innerHTML=t.dataset.tip;tip.hidden=false;
+  const r=wrap.getBoundingClientRect();let x=e.clientX-r.left+14;
+  if(x+tip.offsetWidth>r.width)x=e.clientX-r.left-tip.offsetWidth-14;
+  tip.style.left=Math.max(0,x)+'px';tip.style.top=(e.clientY-r.top+14)+'px';
+});
+wrap.addEventListener('pointerleave',()=>{tip.hidden=true});
+loadData().then(gs=>{G=gs;T=total(gs);$('#src').textContent='資料來源：Google 試算表「'+SHEET_TAB+'」，共 '+T.n+' 人。';render()}).catch(e=>{$('#src').textContent='';$('#svgbox').innerHTML=ERRHTML(e)});
+</script>
+</body>
+</html>

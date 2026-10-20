@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>首頁｜年齡與憂鬱、焦慮、壓力的關係</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav" aria-label="主要導覽"><div class="in"><a class="brand" href="index.html">年齡與憂鬱、焦慮、壓力</a><ul><li><a href="index.html" aria-current="page">首頁</a></li><li><a href="results.html">研究結果</a></li><li><a href="ask.html">問答</a></li><li><a href="about.html">關於研究</a></li></ul></div></nav>
+<main><div class="in">
+<h1 style="margin-top:32px">年齡與憂鬱、焦慮、壓力的關係</h1>
+<p class="lead intro">本研究使用 DASS-42 線上問卷資料，比較不同年齡層在憂鬱、焦慮與壓力三個分量表上的平均分數與嚴重度分布，協助了解各年齡層的情緒狀態差異。</p>
+<div class="stats">
+<div class="stat"><b id="c1">–</b><span>通過資料清洗的樣本人數</span></div>
+<div class="stat"><b id="c2">–</b><span id="c2s"></span></div>
+<div class="stat"><b id="c3">–</b><span id="c3s">憂鬱程度達重度以上的比例（全體）</span></div>
+</div>
+<h2>前往各頁面</h2>
+<div class="entries">
+<a class="entry" href="results.html"><strong>研究結果</strong><span>查看各年齡層的平均數圖表與嚴重度分布</span></a>
+<a class="entry" href="ask.html"><strong>問答</strong><span>即將推出</span></a>
+<a class="entry" href="about.html"><strong>關於研究</strong><span>資料來源、研究方法與樣本限制</span></a>
+</div></div></main>
+<footer><div class="in"><span>組別：第 ＿ 組（請填入組別）</span><span>組員：（請填入組員姓名）</span></div></footer>
+<script>const KEYS=['D','A','S'],$=s=>document.querySelector(s);
+const SHEET_ID='1aRtR0BMKm8Y0_JgHcAkQbwwfiZCKB8Brp9E7VJwtRCM',SHEET_TAB='年齡層統計';
+const LVN=['正常','輕度','中度','重度','極重度'],ALIAS={'重度':'嚴重','極重度':'極嚴重'};
+const RANGES={stats:'A1:J8',lv:'A10:P17'};
+const NOLVTXT='在「'+SHEET_TAB+'」的 '+RANGES.lv+' 找不到嚴重度人數表（標題需含「憂鬱_正常」…「壓力_極嚴重」），因此無法顯示嚴重度分布。';
+const NOLV='<p style="margin:12px;color:var(--mut)">'+NOLVTXT+'</p>';
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function parseCSV(t){const r=[];let row=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch=='"')q=true;
+    else if(ch==','){row.push(c);c=''}
+    else if(ch=='\n'||ch=='\r'){if(ch=='\r'&&t[i+1]=='\n')i++;row.push(c);r.push(row);row=[];c=''}
+    else c+=ch}
+  if(c!==''||row.length){row.push(c);r.push(row)}return r}
+const num=s=>{const v=parseFloat(String(s).replace(/[,\s]/g,''));return isNaN(v)?null:v};
+async function getRows(range){
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(SHEET_TAB)+'&range='+range;
+  let res;try{res=await fetch(url)}catch(e){throw new Error('無法連線到 Google 試算表（'+e.message+'）')}
+  if(!res.ok)throw new Error('讀取 '+range+' 失敗，HTTP '+res.status+' '+res.statusText);
+  return parseCSV(await res.text()).filter(r=>r.some(x=>x.trim()))}
+function findTable(rows,key){
+  const i=rows.findIndex(r=>r.some(c=>c.replace(/\s/g,'')===key));
+  return i<0?null:{H:rows[i].map(h=>h.replace(/\s/g,'')),body:rows.slice(i+1)}}
+async function loadData(){
+  const t=findTable(await getRows(RANGES.stats),'人數');
+  if(!t)throw new Error('在「'+SHEET_TAB+'」的 '+RANGES.stats+' 找不到標題「人數」，請確認統計表放在 A1:J8');
+  const H=t.H,col=(...a)=>{for(const n of a){const i=H.indexOf(n);if(i>=0)return i}return -1};
+  const sc={D:'憂鬱',A:'焦慮',S:'壓力'},ix={},iL=col('年齡層'),iN=col('人數'),miss=[];
+  if(iL<0)miss.push('年齡層');
+  for(const k in sc){ix[k]={m:col(sc[k]+'_平均'),s:col(sc[k]+'_標準差')};
+    if(ix[k].m<0)miss.push(sc[k]+'_平均');if(ix[k].s<0)miss.push(sc[k]+'_標準差')}
+  if(miss.length)throw new Error('找不到欄位：'+miss.join('、')+'。目前的標題列是：'+H.join('、'));
+  const groups=t.body.map(r=>{const n=num(r[iN]);if(n===null||!r[iL].trim())return null;
+    const g={l:r[iL].trim(),n};
+    for(const k in sc){const m=num(r[ix[k].m]),s=num(r[ix[k].s]);
+      if(m===null||s===null)throw new Error('「'+g.l+'」的'+sc[k]+'平均或標準差不是數字');
+      g[k]={n,m,s,lv:null}}
+    return g}).filter(Boolean);
+  if(!groups.length)throw new Error('「'+SHEET_TAB+'」的 '+RANGES.stats+' 沒有資料列');
+  const lt=findTable(await getRows(RANGES.lv).catch(()=>[]),'憂鬱_正常');
+  if(lt){
+    const L=lt.H,li=L.indexOf('年齡層'),cols={};let ok=li>=0;
+    for(const k in sc){cols[k]=LVN.map(l=>{for(const n of [sc[k]+'_'+l,sc[k]+'_'+(ALIAS[l]||l)]){const i=L.indexOf(n);if(i>=0)return i}return -1});
+      if(cols[k].some(i=>i<0))ok=false}
+    if(ok){
+      const m=new Map(lt.body.map(r=>[r[li].trim(),r])),bad=groups.filter(g=>!m.has(g.l)).map(g=>g.l);
+      if(bad.length)throw new Error('嚴重度表（'+RANGES.lv+'）找不到年齡層：'+bad.join('、')+'。請確認 A11:A16 與 A2:A7 的年齡層相同');
+      for(const g of groups)for(const k in sc)g[k].lv=cols[k].map(i=>num(m.get(g.l)[i])||0)}}
+  return groups}
+function total(gs){const N=gs.reduce((a,g)=>a+g.n,0),T={n:N};
+  for(const k of ['D','A','S']){const M=gs.reduce((a,g)=>a+g.n*g[k].m,0)/N;
+    const ss=gs.reduce((a,g)=>a+(g.n-1)*g[k].s**2+g.n*(g[k].m-M)**2,0);
+    T[k]={n:N,m:M,s:Math.sqrt(ss/(N-1)),lv:gs[0][k].lv?LVN.map((_,j)=>gs.reduce((a,g)=>a+g[k].lv[j],0)):null}}
+  return T}
+const ERRHTML=e=>'<p style="margin:12px;padding:10px 12px;border-left:4px solid var(--l3);color:var(--ink)"><b>資料讀取失敗</b>：'+esc(e.message)+'<br>請確認試算表共用設定為「知道連結的任何人」可檢視，且工作表名稱為「'+SHEET_TAB+'」。</p>';
+loadData().then(G=>{
+  const T=total(G),top=G.reduce((a,g)=>g.D.m>a.D.m?g:a);
+  $('#c1').textContent=T.n.toLocaleString('en-US');
+  $('#c2').textContent=top.l;
+  $('#c2s').textContent='憂鬱平均分數最高的年齡層（平均 '+top.D.m.toFixed(2)+' 分）';
+  if(T.D.lv)$('#c3').textContent=((T.D.lv[3]+T.D.lv[4])/T.D.n*100).toFixed(1)+'%';
+  else $('#c3s').textContent='找不到嚴重度人數表，無法計算';
+}).catch(e=>{const d=document.createElement('div');d.innerHTML=ERRHTML(e);$('.stats').after(d)});
+</script>
+</body>
+</html>
